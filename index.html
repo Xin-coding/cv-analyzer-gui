@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A local-first electrochemical CV, LSV, and Tafel analyzer for Bio-Logic MPR and tabular data."
+    />
+    <title>CV Analyzer GUI</title>
+    <script>
+      if (window.location.hash.includes("figmacapture=")) {
+        const captureScript = document.createElement("script");
+        captureScript.src = "https://mcp.figma.com/mcp/html-to-design/capture.js";
+        captureScript.async = true;
+        document.head.appendChild(captureScript);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

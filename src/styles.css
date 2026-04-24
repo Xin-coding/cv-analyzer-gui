@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #172026;
+  background: #eef1ec;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.number-input {
+  @apply h-9 w-full rounded-md border border-line bg-white px-2 text-sm outline-none transition focus:border-mint focus:ring-2 focus:ring-mint/15;
+}
+
+.label {
+  @apply mb-1 block text-xs font-medium text-slate-600;
+}
+
+.panel {
+  @apply rounded-lg border border-line bg-white shadow-soft;
+}
+
+.toolbar-button {
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-mint hover:text-mint;
+}
+
+.primary-button {
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-md bg-mint px-3 text-sm font-semibold text-white transition hover:bg-teal-800;
+}
+
+.danger-button {
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50;
+}
+
+.segmented {
+  @apply grid rounded-md border border-line bg-panel p-1 text-sm;
+}
+
+.segmented button {
+  @apply rounded px-2 py-1.5 text-slate-600 transition;
+}
+
+.segmented button[data-active="true"] {
+  @apply bg-white font-semibold text-mint shadow-sm;
+}
