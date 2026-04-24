@@ -608,9 +608,12 @@ function DatasetCard({
         <summary className="cursor-pointer text-mint">{t("applyOverrides")}</summary>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <NumberField label={t("ocpOffset")} value={activeSettings.ocpOffset} onChange={(value) => onOverride({ ocpOffset: value })} />
+          <NumberField label={t("pH")} value={activeSettings.pH} onChange={(value) => onOverride({ pH: value })} />
           <NumberField label={t("resistance")} value={activeSettings.resistanceOhm} onChange={(value) => onOverride({ resistanceOhm: value })} />
+          <NumberField label={t("irPercent")} value={activeSettings.irPercent} onChange={(value) => onOverride({ irPercent: value })} />
           <NumberField label={t("geoArea")} value={activeSettings.geometricAreaCm2} onChange={(value) => onOverride({ geometricAreaCm2: value })} />
           <NumberField label={t("ecsaArea")} value={activeSettings.ecsaCm2} onChange={(value) => onOverride({ ecsaCm2: value })} />
+          <NumberField label={t("loading")} value={activeSettings.loadingMgCm2} onChange={(value) => onOverride({ loadingMgCm2: value })} />
           <button className="toolbar-button col-span-2" onClick={() => onUpdate({ override: undefined })}>
             <RotateCcw size={14} />
             {t("clear")}
