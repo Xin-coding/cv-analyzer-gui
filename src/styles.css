@@ -37,6 +37,12 @@ select {
   @apply inline-flex h-9 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-mint hover:text-mint;
 }
 
+.toolbar-button:disabled,
+.primary-button:disabled,
+.danger-button:disabled {
+  @apply cursor-not-allowed opacity-45 hover:border-line hover:text-slate-700;
+}
+
 .primary-button {
   @apply inline-flex h-9 items-center justify-center gap-2 rounded-md bg-mint px-3 text-sm font-semibold text-white transition hover:bg-teal-800;
 }

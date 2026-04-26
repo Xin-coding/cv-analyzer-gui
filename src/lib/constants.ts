@@ -13,14 +13,14 @@ export const referencePresets: ReferencePreset[] = [
 export const defaultCorrection: CorrectionSettings = {
   referenceId: "sce",
   customReferenceVsShe: 0,
-  ocpOffset: 0,
+  referenceOffset: 0,
   pH: 14,
-  resistanceOhm: 0,
-  irPercent: 1,
+  resistanceOhm: 1,
+  irPercent: 100,
   normalizeMode: "geo",
-  geometricAreaCm2: 0.196,
+  geometricAreaCm2: 1,
   ecsaCm2: 1,
-  loadingMgCm2: 0
+  loadingMgCm2: 1
 };
 
 export const palette = [

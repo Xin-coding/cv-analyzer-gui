@@ -11,7 +11,7 @@ export function mergedCorrection(
   globalSettings: CorrectionSettings,
   override?: Partial<CorrectionSettings>
 ): CorrectionSettings {
-  return { ...globalSettings, ...override };
+  return sanitizeCorrection({ ...globalSettings, ...override });
 }
 
 export function referenceVsShe(settings: CorrectionSettings): number {
@@ -27,9 +27,9 @@ export function correctedPotential(
   return (
     potential +
     referenceVsShe(settings) +
-    settings.ocpOffset +
+    settings.referenceOffset +
     0.05916 * settings.pH -
-    currentA * settings.resistanceOhm * settings.irPercent
+    currentA * positiveOrOne(settings.resistanceOhm) * nonNegativeOrZero(settings.irPercent) / 100
   );
 }
 
@@ -157,4 +157,19 @@ export function inferDefaultFitRange(points: CorrectedPoint[]) {
 
 function positiveOrOne(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+function nonNegativeOrZero(value: number): number {
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function sanitizeCorrection(settings: CorrectionSettings): CorrectionSettings {
+  return {
+    ...settings,
+    resistanceOhm: positiveOrOne(settings.resistanceOhm),
+    irPercent: nonNegativeOrZero(settings.irPercent),
+    geometricAreaCm2: positiveOrOne(settings.geometricAreaCm2),
+    ecsaCm2: positiveOrOne(settings.ecsaCm2),
+    loadingMgCm2: positiveOrOne(settings.loadingMgCm2)
+  };
 }

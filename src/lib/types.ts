@@ -44,7 +44,7 @@ export interface ReferencePreset {
 export interface CorrectionSettings {
   referenceId: ReferencePresetId;
   customReferenceVsShe: number;
-  ocpOffset: number;
+  referenceOffset: number;
   pH: number;
   resistanceOhm: number;
   irPercent: number;
@@ -70,4 +70,9 @@ export interface TafelFit {
   intercept: number;
   r2: number;
   n: number;
+}
+
+export interface TafelFitWindow {
+  startPotential: number;
+  endPotential: number;
 }
