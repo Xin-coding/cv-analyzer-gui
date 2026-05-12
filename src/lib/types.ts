@@ -1,6 +1,7 @@
 export type Language = "zh" | "en";
 
 export type ReferencePresetId =
+  | "raw"
   | "sce"
   | "agagcl_sat"
   | "agagcl_3m"

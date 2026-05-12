@@ -33,7 +33,7 @@ export function pointsWorkbook(
     "index",
     "potential_raw_v",
     "current_raw_a",
-    "potential_rhe_v",
+    "potential_display_v",
     yHeader
   ];
   return series.map((item) => {
@@ -100,7 +100,7 @@ export function tafelWorkbook(
         "cycle",
         "index",
         "log10_abs_y",
-        "potential_rhe_v",
+        "potential_display_v",
         "y_value"
       ],
       ...item.points
@@ -134,7 +134,7 @@ export function pointsCsv(
       "index",
       "potential_raw_v",
       "current_raw_a",
-      "potential_rhe_v",
+      "potential_display_v",
       yHeader
     ].join(",")
   ];
@@ -169,7 +169,7 @@ export function tafelCsv(
       "dataset_id",
       "display_name",
       "log10_abs_y",
-      "potential_rhe_v",
+      "potential_display_v",
       "fit_start_v",
       "fit_end_v",
       "slope_mv_dec",

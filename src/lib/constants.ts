@@ -1,6 +1,7 @@
 import type { CorrectionSettings, ReferencePreset } from "./types";
 
 export const referencePresets: ReferencePreset[] = [
+  { id: "raw", label: "Raw potential (no correction)", valueVsShe: 0 },
   { id: "sce", label: "SCE (+0.241 V vs SHE)", valueVsShe: 0.241 },
   { id: "agagcl_sat", label: "Ag/AgCl sat. KCl (+0.197 V)", valueVsShe: 0.197 },
   { id: "agagcl_3m", label: "Ag/AgCl 3 M KCl (+0.210 V)", valueVsShe: 0.21 },
@@ -11,16 +12,16 @@ export const referencePresets: ReferencePreset[] = [
 ];
 
 export const defaultCorrection: CorrectionSettings = {
-  referenceId: "sce",
+  referenceId: "raw",
   customReferenceVsShe: 0,
   referenceOffset: 0,
-  pH: 14,
-  resistanceOhm: 1,
-  irPercent: 100,
-  normalizeMode: "geo",
-  geometricAreaCm2: 1,
-  ecsaCm2: 1,
-  loadingMgCm2: 1
+  pH: 0,
+  resistanceOhm: 0,
+  irPercent: 0,
+  normalizeMode: "raw",
+  geometricAreaCm2: 0,
+  ecsaCm2: 0,
+  loadingMgCm2: 0
 };
 
 export const palette = [

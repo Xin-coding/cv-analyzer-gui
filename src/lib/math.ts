@@ -15,8 +15,18 @@ export function mergedCorrection(
 }
 
 export function referenceVsShe(settings: CorrectionSettings): number {
+  if (settings.referenceId === "raw") return 0;
   if (settings.referenceId === "custom") return settings.customReferenceVsShe;
   return referencePresets.find((item) => item.id === settings.referenceId)?.valueVsShe ?? 0;
+}
+
+export function isRawPotential(settings: CorrectionSettings): boolean {
+  return (
+    settings.referenceId === "raw" &&
+    settings.referenceOffset === 0 &&
+    settings.pH === 0 &&
+    settings.irPercent === 0
+  );
 }
 
 export function correctedPotential(
@@ -29,7 +39,7 @@ export function correctedPotential(
     referenceVsShe(settings) +
     settings.referenceOffset +
     0.05916 * settings.pH -
-    currentA * positiveOrOne(settings.resistanceOhm) * nonNegativeOrZero(settings.irPercent) / 100
+    currentA * nonNegativeOrZero(settings.resistanceOhm) * nonNegativeOrZero(settings.irPercent) / 100
   );
 }
 
@@ -166,10 +176,17 @@ function nonNegativeOrZero(value: number): number {
 function sanitizeCorrection(settings: CorrectionSettings): CorrectionSettings {
   return {
     ...settings,
-    resistanceOhm: positiveOrOne(settings.resistanceOhm),
+    customReferenceVsShe: finiteOrZero(settings.customReferenceVsShe),
+    referenceOffset: finiteOrZero(settings.referenceOffset),
+    pH: nonNegativeOrZero(settings.pH),
+    resistanceOhm: nonNegativeOrZero(settings.resistanceOhm),
     irPercent: nonNegativeOrZero(settings.irPercent),
-    geometricAreaCm2: positiveOrOne(settings.geometricAreaCm2),
-    ecsaCm2: positiveOrOne(settings.ecsaCm2),
-    loadingMgCm2: positiveOrOne(settings.loadingMgCm2)
+    geometricAreaCm2: finiteOrZero(settings.geometricAreaCm2),
+    ecsaCm2: finiteOrZero(settings.ecsaCm2),
+    loadingMgCm2: finiteOrZero(settings.loadingMgCm2)
   };
+}
+
+function finiteOrZero(value: number): number {
+  return Number.isFinite(value) ? value : 0;
 }

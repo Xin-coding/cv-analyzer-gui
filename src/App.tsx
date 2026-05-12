@@ -11,13 +11,14 @@ import {
   Settings2,
   Trash2
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { defaultCorrection, referencePresets } from "./lib/constants";
 import { downloadWorkbook, pointsWorkbook, tafelWorkbook } from "./lib/export";
 import { makeT } from "./lib/i18n";
 import {
   correctDataset,
   inferDefaultFitRange,
+  isRawPotential,
   linearTafelFit,
   mergedCorrection,
   selectBranch,
@@ -123,6 +124,27 @@ export default function App() {
     );
     return modes.size <= 1 ? t(yAxisKey([...modes][0] ?? settings.normalizeMode)) : t("currentAxisMixed");
   }, [visibleDatasets, settings, t]);
+
+  const xLabel = useMemo(() => {
+    const rawStates = visibleDatasets.map((dataset) =>
+      isRawPotential(mergedCorrection(settings, dataset.override))
+    );
+    if (!rawStates.length) return t("potentialAxisRaw");
+    const uniqueStates = new Set(rawStates);
+    if (uniqueStates.size > 1) return t("potentialAxisMixed");
+    return rawStates[0] ? t("potentialAxisRaw") : t("potentialAxis");
+  }, [visibleDatasets, settings, t]);
+
+  const correctionRevision = useMemo(
+    () =>
+      `${stableJson(settings)}|${orderedDatasets
+        .map((dataset) => `${dataset.id}:${dataset.visible}:${stableJson(dataset.override ?? {})}`)
+        .join("|")}`,
+    [orderedDatasets, settings]
+  );
+  const cvUiRevision = `cv:${correctionRevision}:${cycleMode}:${stacked}:${stackStep}`;
+  const lsvUiRevision = `lsv:${correctionRevision}:${branchMode}`;
+  const tafelUiRevision = `tafel:${correctionRevision}:${branchMode}:${stableJson(fitWindows)}:${tafelFocus}`;
 
   const cvTraces = useMemo(() => {
     const traces = cvSeries.flatMap(({ dataset, points, offset }) => {
@@ -625,14 +647,15 @@ export default function App() {
                     paper_bgcolor: "#ffffff",
                     plot_bgcolor: "#fbfcfa",
                     margin: { l: 72, r: 28, t: 18, b: 64 },
-                    xaxis: { title: { text: t("potentialAxis") }, zeroline: false, gridcolor: "#e6ebe6" },
+                    xaxis: { title: { text: xLabel }, zeroline: false, gridcolor: "#e6ebe6" },
                     yaxis: { title: { text: yLabel }, zeroline: true, gridcolor: "#e6ebe6" },
                     showlegend: false,
                     hovermode: "closest",
+                    uirevision: cvUiRevision,
                     annotations: cvDirectionAnnotations as any,
                     font: { family: "Inter, Arial, sans-serif", color: "#172026" }
                   }}
-                  config={{ responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d"] }}
+                  config={{ responsive: true, displaylogo: false, scrollZoom: true, modeBarButtonsToRemove: ["lasso2d"] }}
                   style={{ width: "100%", height: "460px" }}
                   onInitialized={(_, graphDiv) => {
                     cvPlotRef.current = graphDiv as unknown as HTMLElement;
@@ -712,7 +735,7 @@ export default function App() {
                     paper_bgcolor: "#ffffff",
                     plot_bgcolor: "#fbfcfa",
                     margin: { l: 72, r: 28, t: 18, b: 58 },
-                    xaxis: { title: { text: t("potentialAxis") }, gridcolor: "#e6ebe6" },
+                    xaxis: { title: { text: xLabel }, gridcolor: "#e6ebe6" },
                     yaxis: { title: { text: yLabel }, gridcolor: "#e6ebe6" },
                     shapes: [
                       {
@@ -728,9 +751,10 @@ export default function App() {
                       }
                     ],
                     showlegend: false,
+                    uirevision: lsvUiRevision,
                     font: { family: "Inter, Arial, sans-serif", color: "#172026" }
                   }}
-                  config={{ responsive: true, displaylogo: false }}
+                  config={{ responsive: true, displaylogo: false, scrollZoom: true }}
                   style={{ width: "100%", height: "300px" }}
                   onInitialized={(_, graphDiv) => {
                     lsvPlotRef.current = graphDiv as unknown as HTMLElement;
@@ -771,17 +795,19 @@ export default function App() {
                       range: tafelFocusRange?.x
                     },
                     yaxis: {
-                      title: { text: t("potentialAxis") },
+                      title: { text: xLabel },
                       gridcolor: "#e6ebe6",
                       range: tafelFocusRange?.y
                     },
                     shapes: tafelRangeOverlay.shapes,
                     showlegend: false,
+                    uirevision: tafelUiRevision,
                     font: { family: "Inter, Arial, sans-serif", color: "#172026" }
                   }}
                   config={{
                     responsive: true,
                     displaylogo: false,
+                    scrollZoom: true,
                     edits: { shapePosition: true }
                   }}
                   style={{ width: "100%", height: "330px" }}
@@ -918,7 +944,7 @@ function CorrectionEditor({
         </Field>
         <NumberField label={t("customRef")} value={settings.customReferenceVsShe} onChange={(value) => onChange("customReferenceVsShe", value)} />
         <NumberField label={t("referenceOffset")} value={settings.referenceOffset} onChange={(value) => onChange("referenceOffset", value)} />
-        <NumberField label={t("pH")} value={settings.pH} onChange={(value) => onChange("pH", value)} />
+        <NumberField label={t("pH")} value={settings.pH} onChange={(value) => onChange("pH", value)} constraint="nonNegative" />
         <NumberField label={t("resistance")} value={settings.resistanceOhm} onChange={(value) => onChange("resistanceOhm", value)} constraint="positive" />
         <NumberField label={t("irPercent")} value={settings.irPercent} onChange={(value) => onChange("irPercent", value)} constraint="nonNegative" />
         <Field label={t("normMode")} title={t("massTooltip")}>
@@ -991,7 +1017,7 @@ function CvParameterTable({
                     <SmallNumber value={active.referenceOffset} onChange={(value) => onOverride(dataset.id, { referenceOffset: value })} />
                   </td>
                   <td className="px-3 py-2">
-                    <SmallNumber value={active.pH} onChange={(value) => onOverride(dataset.id, { pH: value })} />
+                    <SmallNumber value={active.pH} onChange={(value) => onOverride(dataset.id, { pH: value })} constraint="nonNegative" />
                   </td>
                   <td className="px-3 py-2">
                     <SmallNumber value={active.resistanceOhm} onChange={(value) => onOverride(dataset.id, { resistanceOhm: value })} constraint="positive" />
@@ -1313,16 +1339,67 @@ function SmallNumber({
   constraint?: NumberConstraint;
   title?: string;
 }) {
+  const [draft, setDraft] = useState(formatNumber(value));
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!dirty) {
+      setDraft(formatNumber(value));
+      setError("");
+    }
+  }, [dirty, value]);
+
+  function commitDraft() {
+    if (!dirty) return;
+    const result = validateNumberDraft(draft, constraint);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setError("");
+    setDirty(false);
+    setDraft(formatNumber(result.value));
+    onChange(result.value);
+  }
+
+  function resetDraft() {
+    setDraft(formatNumber(value));
+    setDirty(false);
+    setError("");
+  }
+
   return (
-    <input
-      className={full ? "number-input" : "number-input h-8 w-24"}
-      type="number"
-      step="any"
-      min={constraint === "positive" ? "0.000000001" : constraint === "nonNegative" ? "0" : undefined}
-      title={title}
-      value={Number.isFinite(value) ? value : 0}
-      onChange={(event) => onChange(coerceNumber(Number(event.target.value), constraint))}
-    />
+    <div className={full ? "w-full" : "w-24"}>
+      <input
+        className={`${full ? "number-input" : "number-input h-8 w-24"} ${
+          error ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100" : ""
+        }`}
+        type="text"
+        inputMode="decimal"
+        title={error || title}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setDirty(true);
+          setError("");
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commitDraft();
+            event.currentTarget.blur();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            resetDraft();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      {error ? <div className="mt-1 whitespace-normal text-[10px] leading-tight text-red-600">{error}</div> : null}
+    </div>
   );
 }
 
@@ -1360,6 +1437,24 @@ function hoverTrace(point: HoverPoint) {
   };
 }
 
+function formatNumber(value: number) {
+  return Number.isFinite(value) ? String(value) : "";
+}
+
+function validateNumberDraft(draft: string, constraint: NumberConstraint): { value: number; error?: string } {
+  const trimmed = draft.trim();
+  if (!trimmed) return { value: 0, error: "请输入数字 / Enter a number" };
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) return { value: 0, error: "请输入有效数字 / Enter a valid number" };
+  if (constraint === "positive" && value <= 0) {
+    return { value, error: "必须为正数 / Must be > 0" };
+  }
+  if (constraint === "nonNegative" && value < 0) {
+    return { value, error: "必须为非负数 / Must be >= 0" };
+  }
+  return { value };
+}
+
 function coerceNumber(value: number, constraint: NumberConstraint) {
   if (!Number.isFinite(value)) return constraint === "positive" ? 1 : 0;
   if (constraint === "positive") return value > 0 ? value : 1;
@@ -1374,6 +1469,9 @@ function sanitizeCorrectionPatch(patch: Partial<CorrectionSettings>) {
   }
   if ("irPercent" in next && next.irPercent !== undefined) {
     next.irPercent = coerceNumber(next.irPercent, "nonNegative");
+  }
+  if ("pH" in next && next.pH !== undefined) {
+    next.pH = coerceNumber(next.pH, "nonNegative");
   }
   for (const key of ["geometricAreaCm2", "ecsaCm2", "loadingMgCm2"] as const) {
     if (key in next && next[key] !== undefined) next[key] = coerceNumber(next[key]!, "positive");
@@ -1401,6 +1499,16 @@ function exportTraces(traces: any[]) {
       if (name) seen.add(name);
       return clone;
     });
+}
+
+function stableJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
+    .join(",")}}`;
 }
 
 function fitSummaryAnnotations(fits: TafelFit[], t: (key: string) => string) {
