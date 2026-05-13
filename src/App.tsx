@@ -945,14 +945,14 @@ function CorrectionEditor({
         <NumberField label={t("customRef")} value={settings.customReferenceVsShe} onChange={(value) => onChange("customReferenceVsShe", value)} />
         <NumberField label={t("referenceOffset")} value={settings.referenceOffset} onChange={(value) => onChange("referenceOffset", value)} />
         <NumberField label={t("pH")} value={settings.pH} onChange={(value) => onChange("pH", value)} constraint="nonNegative" />
-        <NumberField label={t("resistance")} value={settings.resistanceOhm} onChange={(value) => onChange("resistanceOhm", value)} constraint="positive" />
+        <NumberField label={t("resistance")} value={settings.resistanceOhm} onChange={(value) => onChange("resistanceOhm", value)} constraint="nonNegative" />
         <NumberField label={t("irPercent")} value={settings.irPercent} onChange={(value) => onChange("irPercent", value)} constraint="nonNegative" />
         <Field label={t("normMode")} title={t("massTooltip")}>
           <NormalizeSelect value={settings.normalizeMode} t={t} onChange={(value) => onChange("normalizeMode", value)} title={t("massTooltip")} />
         </Field>
-        <NumberField label={t("geoArea")} value={settings.geometricAreaCm2} onChange={(value) => onChange("geometricAreaCm2", value)} constraint="positive" />
-        <NumberField label={t("ecsaArea")} value={settings.ecsaCm2} onChange={(value) => onChange("ecsaCm2", value)} constraint="positive" />
-        <NumberField label={t("loading")} value={settings.loadingMgCm2} onChange={(value) => onChange("loadingMgCm2", value)} constraint="positive" title={t("massTooltip")} />
+        <NumberField label={t("geoArea")} value={settings.geometricAreaCm2} onChange={(value) => onChange("geometricAreaCm2", value)} constraint="nonNegative" />
+        <NumberField label={t("ecsaArea")} value={settings.ecsaCm2} onChange={(value) => onChange("ecsaCm2", value)} constraint="nonNegative" />
+        <NumberField label={t("loading")} value={settings.loadingMgCm2} onChange={(value) => onChange("loadingMgCm2", value)} constraint="nonNegative" title={t("massTooltip")} />
       </div>
     </div>
   );
@@ -978,21 +978,21 @@ function CvParameterTable({
         <h2 className="text-sm font-semibold">{t("cvParameterTable")}</h2>
       </div>
       <div className="max-h-[330px] min-w-0 overflow-auto rounded-md border border-line bg-white">
-        <table className="w-max min-w-[1320px] whitespace-nowrap text-left text-xs">
+        <table className="w-max min-w-full table-auto text-left text-xs">
           <thead className="sticky top-0 z-10 bg-panel text-slate-600">
             <tr>
-              <th className="w-[420px] px-3 py-2">{t("rename")}</th>
-              <th className="w-40 px-3 py-2">{t("reference")}</th>
-              <th className="w-28 px-3 py-2">{t("customRef")}</th>
-              <th className="w-28 px-3 py-2">{t("referenceOffset")}</th>
-              <th className="w-20 px-3 py-2">{t("pH")}</th>
-              <th className="w-24 px-3 py-2">{t("resistance")}</th>
-              <th className="w-24 px-3 py-2">{t("irPercent")}</th>
-              <th className="w-32 px-3 py-2">{t("normMode")}</th>
-              <th className="w-24 px-3 py-2">{t("geoArea")}</th>
-              <th className="w-24 px-3 py-2">{t("ecsaArea")}</th>
-              <th className="w-24 px-3 py-2">{t("loading")}</th>
-              <th className="w-24 px-3 py-2">{t("status")}</th>
+              <th className="w-[340px] min-w-[220px] max-w-[340px] whitespace-normal px-2 py-2">{t("rename")}</th>
+              <th className="min-w-[8rem] whitespace-nowrap px-2 py-2">{t("reference")}</th>
+              <th className="min-w-[6rem] whitespace-nowrap px-2 py-2">{t("customRef")}</th>
+              <th className="min-w-[6rem] whitespace-nowrap px-2 py-2">{t("referenceOffset")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("pH")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("resistance")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("irPercent")}</th>
+              <th className="min-w-[7rem] whitespace-nowrap px-2 py-2">{t("normMode")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("geoArea")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("ecsaArea")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("loading")}</th>
+              <th className="min-w-[5rem] whitespace-nowrap px-2 py-2">{t("status")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -1000,32 +1000,32 @@ function CvParameterTable({
               const active = mergedCorrection(settings, dataset.override);
               return (
                 <tr key={dataset.id}>
-                  <td className="w-[420px] whitespace-normal break-words px-3 py-2" title={dataset.displayName}>
+                  <td className="w-[340px] min-w-[220px] max-w-[340px] whitespace-normal break-words px-2 py-2 align-top" title={dataset.displayName}>
                     {dataset.displayName}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2 align-top">
                     <ReferenceSelect
                       value={active.referenceId}
                       onChange={(value) => onOverride(dataset.id, { referenceId: value })}
                       compact
                     />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.customReferenceVsShe} onChange={(value) => onOverride(dataset.id, { customReferenceVsShe: value })} />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.customReferenceVsShe} onChange={(value) => onOverride(dataset.id, { customReferenceVsShe: value })} widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.referenceOffset} onChange={(value) => onOverride(dataset.id, { referenceOffset: value })} />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.referenceOffset} onChange={(value) => onOverride(dataset.id, { referenceOffset: value })} widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.pH} onChange={(value) => onOverride(dataset.id, { pH: value })} constraint="nonNegative" />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.pH} onChange={(value) => onOverride(dataset.id, { pH: value })} constraint="nonNegative" widthClass="w-16" />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.resistanceOhm} onChange={(value) => onOverride(dataset.id, { resistanceOhm: value })} constraint="positive" />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.resistanceOhm} onChange={(value) => onOverride(dataset.id, { resistanceOhm: value })} constraint="nonNegative" widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.irPercent} onChange={(value) => onOverride(dataset.id, { irPercent: value })} constraint="nonNegative" />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.irPercent} onChange={(value) => onOverride(dataset.id, { irPercent: value })} constraint="nonNegative" widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2 align-top">
                     <NormalizeSelect
                       value={active.normalizeMode}
                       t={t}
@@ -1034,16 +1034,16 @@ function CvParameterTable({
                       title={t("massTooltip")}
                     />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.geometricAreaCm2} onChange={(value) => onOverride(dataset.id, { geometricAreaCm2: value })} constraint="positive" />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.geometricAreaCm2} onChange={(value) => onOverride(dataset.id, { geometricAreaCm2: value })} constraint="nonNegative" widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.ecsaCm2} onChange={(value) => onOverride(dataset.id, { ecsaCm2: value })} constraint="positive" />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.ecsaCm2} onChange={(value) => onOverride(dataset.id, { ecsaCm2: value })} constraint="nonNegative" widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
-                    <SmallNumber value={active.loadingMgCm2} onChange={(value) => onOverride(dataset.id, { loadingMgCm2: value })} constraint="positive" title={t("massTooltip")} />
+                  <td className="px-2 py-2 align-top">
+                    <SmallNumber value={active.loadingMgCm2} onChange={(value) => onOverride(dataset.id, { loadingMgCm2: value })} constraint="nonNegative" title={t("massTooltip")} widthClass="w-20" />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2 align-top">
                     <button
                       className="toolbar-button h-7 px-2"
                       onClick={() => onResetOverride(dataset.id)}
@@ -1228,7 +1228,7 @@ function ReferenceSelect({
 }) {
   return (
     <select
-      className={compact ? "number-input h-8 w-36" : "number-input"}
+      className={compact ? "number-input h-8 w-32" : "number-input"}
       value={value}
       onChange={(event) => onChange(event.target.value as ReferencePresetId)}
     >
@@ -1256,7 +1256,7 @@ function NormalizeSelect({
 }) {
   return (
     <select
-      className={compact ? "number-input h-8 w-32" : "number-input"}
+      className={compact ? "number-input h-8 w-28" : "number-input"}
       value={value}
       title={title}
       onChange={(event) => onChange(event.target.value as NormalizeMode)}
@@ -1331,13 +1331,15 @@ function SmallNumber({
   onChange,
   full = false,
   constraint = "any",
-  title
+  title,
+  widthClass = "w-24"
 }: {
   value: number;
   onChange: (value: number) => void;
   full?: boolean;
   constraint?: NumberConstraint;
   title?: string;
+  widthClass?: string;
 }) {
   const [draft, setDraft] = useState(formatNumber(value));
   const [dirty, setDirty] = useState(false);
@@ -1370,9 +1372,9 @@ function SmallNumber({
   }
 
   return (
-    <div className={full ? "w-full" : "w-24"}>
+    <div className={full ? "w-full" : widthClass}>
       <input
-        className={`${full ? "number-input" : "number-input h-8 w-24"} ${
+        className={`${full ? "number-input" : `number-input h-8 ${widthClass}`} ${
           error ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100" : ""
         }`}
         type="text"
@@ -1465,7 +1467,7 @@ function coerceNumber(value: number, constraint: NumberConstraint) {
 function sanitizeCorrectionPatch(patch: Partial<CorrectionSettings>) {
   const next = { ...patch };
   if ("resistanceOhm" in next && next.resistanceOhm !== undefined) {
-    next.resistanceOhm = coerceNumber(next.resistanceOhm, "positive");
+    next.resistanceOhm = coerceNumber(next.resistanceOhm, "nonNegative");
   }
   if ("irPercent" in next && next.irPercent !== undefined) {
     next.irPercent = coerceNumber(next.irPercent, "nonNegative");
@@ -1474,7 +1476,7 @@ function sanitizeCorrectionPatch(patch: Partial<CorrectionSettings>) {
     next.pH = coerceNumber(next.pH, "nonNegative");
   }
   for (const key of ["geometricAreaCm2", "ecsaCm2", "loadingMgCm2"] as const) {
-    if (key in next && next[key] !== undefined) next[key] = coerceNumber(next[key]!, "positive");
+    if (key in next && next[key] !== undefined) next[key] = coerceNumber(next[key]!, "nonNegative");
   }
   return next;
 }
