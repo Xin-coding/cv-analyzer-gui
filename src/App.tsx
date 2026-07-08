@@ -49,6 +49,7 @@ import type {
 type PlotPanel = "cv" | "lsv" | "tafel";
 type ImageFormat = "png" | "svg";
 type NumberConstraint = "any" | "positive" | "nonNegative";
+const FIT_POTENTIAL_DECIMALS = 3;
 
 interface HoverPoint {
   panel: PlotPanel;
@@ -337,7 +338,7 @@ export default function App() {
       const parsed = await parseFiles(Array.from(files), datasets.length);
       setDatasets((current) => [...current, ...parsed]);
       const allPoints = parsed.flatMap((dataset) => correctDataset(dataset, settings));
-      if (allPoints.length) setFitRange(inferDefaultFitRange(allPoints));
+      if (allPoints.length) setFitRange(normalizeFitRange(inferDefaultFitRange(allPoints)));
     } catch (err) {
       setError(`${t("parseError")}: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -720,11 +721,13 @@ export default function App() {
                     label={t("fitStart")}
                     value={fitRange.start}
                     onChange={(value) => setFitRange((range) => ({ ...range, start: value }))}
+                    precision={FIT_POTENTIAL_DECIMALS}
                   />
                   <NumberField
                     label={t("fitEnd")}
                     value={fitRange.end}
                     onChange={(value) => setFitRange((range) => ({ ...range, end: value }))}
+                    precision={FIT_POTENTIAL_DECIMALS}
                   />
                   <div className="flex items-end">
                     <button className="primary-button w-full" onClick={runFits}>
@@ -795,7 +798,9 @@ export default function App() {
                       (event as any)?.points
                         ?.map((point: { x: unknown }) => Number(point.x))
                         .filter(Number.isFinite) ?? [];
-                    if (xs.length) setFitRange({ start: Math.min(...xs), end: Math.max(...xs) });
+                    if (xs.length) {
+                      setFitRange(normalizeFitRange({ start: Math.min(...xs), end: Math.max(...xs) }));
+                    }
                   }}
                   onHover={(event) => handleHover("lsv", event)}
                   onUnhover={() => handleUnhover("lsv")}
@@ -1219,12 +1224,14 @@ function FitTable({
                     <SmallNumber
                       value={window?.startPotential ?? 0}
                       onChange={(value) => onWindowChange(row.dataset.id, { startPotential: value })}
+                      precision={FIT_POTENTIAL_DECIMALS}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <SmallNumber
                       value={window?.endPotential ?? 0}
                       onChange={(value) => onWindowChange(row.dataset.id, { endPotential: value })}
+                      precision={FIT_POTENTIAL_DECIMALS}
                     />
                   </td>
                   <td className="px-3 py-2">{fit ? `${fit.slopeMvDec.toFixed(2)} mV/dec` : resultPlaceholder}</td>
@@ -1342,17 +1349,26 @@ function NumberField({
   value,
   onChange,
   constraint = "any",
-  title
+  title,
+  precision
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   constraint?: NumberConstraint;
   title?: string;
+  precision?: number;
 }) {
   return (
     <Field label={label} title={title}>
-      <SmallNumber value={value} onChange={onChange} full constraint={constraint} title={title} />
+      <SmallNumber
+        value={value}
+        onChange={onChange}
+        full
+        constraint={constraint}
+        title={title}
+        precision={precision}
+      />
     </Field>
   );
 }
@@ -1363,7 +1379,8 @@ function SmallNumber({
   full = false,
   constraint = "any",
   title,
-  widthClass = "w-24"
+  widthClass = "w-24",
+  precision
 }: {
   value: number;
   onChange: (value: number) => void;
@@ -1371,17 +1388,18 @@ function SmallNumber({
   constraint?: NumberConstraint;
   title?: string;
   widthClass?: string;
+  precision?: number;
 }) {
-  const [draft, setDraft] = useState(formatNumber(value));
+  const [draft, setDraft] = useState(formatNumber(value, precision));
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!dirty) {
-      setDraft(formatNumber(value));
+      setDraft(formatNumber(value, precision));
       setError("");
     }
-  }, [dirty, value]);
+  }, [dirty, precision, value]);
 
   function commitDraft() {
     if (!dirty) return;
@@ -1392,12 +1410,13 @@ function SmallNumber({
     }
     setError("");
     setDirty(false);
-    setDraft(formatNumber(result.value));
-    onChange(result.value);
+    const nextValue = precision === undefined ? result.value : roundToPrecision(result.value, precision);
+    setDraft(formatNumber(nextValue, precision));
+    onChange(nextValue);
   }
 
   function resetDraft() {
-    setDraft(formatNumber(value));
+    setDraft(formatNumber(value, precision));
     setDirty(false);
     setError("");
   }
@@ -1470,8 +1489,10 @@ function hoverTrace(point: HoverPoint) {
   };
 }
 
-function formatNumber(value: number) {
-  return Number.isFinite(value) ? String(value) : "";
+function formatNumber(value: number, precision?: number) {
+  if (!Number.isFinite(value)) return "";
+  if (precision === undefined) return String(value);
+  return roundToPrecision(value, precision).toFixed(precision);
 }
 
 function validateNumberDraft(draft: string, constraint: NumberConstraint): { value: number; error?: string } {
@@ -1516,9 +1537,25 @@ function normalizeFitWindow(window: TafelFitWindow): TafelFitWindow {
   const start = Number.isFinite(window.startPotential) ? window.startPotential : 0;
   const end = Number.isFinite(window.endPotential) ? window.endPotential : start;
   return {
-    startPotential: Math.min(start, end),
-    endPotential: Math.max(start, end)
+    startPotential: roundFitPotential(Math.min(start, end)),
+    endPotential: roundFitPotential(Math.max(start, end))
   };
+}
+
+function normalizeFitRange(range: { start: number; end: number }) {
+  return {
+    start: roundFitPotential(range.start),
+    end: roundFitPotential(range.end)
+  };
+}
+
+function roundFitPotential(value: number) {
+  return roundToPrecision(value, FIT_POTENTIAL_DECIMALS);
+}
+
+function roundToPrecision(value: number, precision: number) {
+  const factor = 10 ** precision;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
 }
 
 function exportTraces(traces: any[]) {
@@ -1548,7 +1585,7 @@ function fitSummaryAnnotations(fits: TafelFit[], t: (key: string) => string) {
   const text = fits
     .map(
       (fit) =>
-        `${escapeHtml(fit.displayName)}: E ${fit.startPotential.toFixed(4)}-${fit.endPotential.toFixed(4)} V, ` +
+        `${escapeHtml(fit.displayName)}: E ${fit.startPotential.toFixed(3)}-${fit.endPotential.toFixed(3)} V, ` +
         `${t("slope")} ${fit.slopeMvDec.toFixed(2)} mV/dec, ${t("r2")} ${fit.r2.toFixed(4)}, n=${fit.n}`
     )
     .join("<br>");
