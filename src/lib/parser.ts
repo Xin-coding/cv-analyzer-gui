@@ -8,34 +8,78 @@ type VariableHit = {
   values: number[];
 };
 
+type ParsedDatasetInput = {
+  originalFileName: string;
+  displayName: string;
+  fileType: string;
+  points: RawPoint[];
+  meta: Record<string, unknown>;
+};
+
 export async function parseFiles(files: File[], existingCount = 0): Promise<Dataset[]> {
   const datasets: Dataset[] = [];
-  for (const [fileIndex, file] of files.entries()) {
-    const dataset = await parseFile(file, existingCount + fileIndex);
-    datasets.push(dataset);
+  let nextOrder = existingCount;
+  for (const file of files) {
+    const parsed = await parseFileDatasets(file, nextOrder);
+    datasets.push(...parsed);
+    nextOrder += parsed.length;
   }
   return datasets;
 }
 
 export async function parseFile(file: File, order: number): Promise<Dataset> {
+  const datasets = await parseFileDatasets(file, order);
+  if (datasets.length !== 1) {
+    throw new Error(`Reimport file ${file.name} contains multiple datasets; use parseFiles instead.`);
+  }
+  return datasets[0];
+}
+
+async function parseFileDatasets(file: File, order: number): Promise<Dataset[]> {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   const buffer = await file.arrayBuffer();
+  const reimported = extension === "csv" ? parseReimportBuffer(buffer, file.name) : null;
+  if (reimported) {
+    return reimported.map((input, index) => buildDataset(input, order + index));
+  }
+  return [await parseSingleDatasetFile(file.name, extension, buffer, order)];
+}
+
+async function parseSingleDatasetFile(
+  fileName: string,
+  extension: string,
+  buffer: ArrayBuffer,
+  order: number
+): Promise<Dataset> {
   const parsed =
     extension === "mpr"
       ? await parseMprBuffer(buffer)
-      : parseTextBuffer(buffer, file.name, extension);
+      : parseTextBuffer(buffer, fileName, extension);
 
+  return buildDataset(
+    {
+      originalFileName: fileName,
+      displayName: trimExtension(fileName),
+      fileType: extension,
+      points: parsed.points,
+      meta: parsed.meta
+    },
+    order
+  );
+}
+
+function buildDataset(input: ParsedDatasetInput, order: number): Dataset {
   return {
     id: crypto.randomUUID(),
-    originalFileName: file.name,
-    displayName: trimExtension(file.name),
-    fileType: extension,
-    points: parsed.points,
+    originalFileName: input.originalFileName,
+    displayName: input.displayName,
+    fileType: input.fileType,
+    points: input.points,
     visible: true,
     color: palette[order % palette.length],
     order,
     stackOffset: 0,
-    sourceMeta: parsed.meta
+    sourceMeta: input.meta
   };
 }
 
@@ -161,6 +205,104 @@ export function parseTextBuffer(
       currentColumn: currentHeader
     }
   };
+}
+
+function parseReimportBuffer(buffer: ArrayBuffer, fileName: string): ParsedDatasetInput[] | null {
+  const text = decodeText(buffer);
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const headerIndex = lines.findIndex((line) => {
+    const delimiter = sniffDelimiter(line);
+    return splitLine(line, delimiter).some(
+      (header) => normalizeHeader(header) === "cv_analyzer_export_version"
+    );
+  });
+  if (headerIndex < 0) return null;
+
+  const delimiter = sniffDelimiter(lines[headerIndex]);
+  const headers = splitLine(lines[headerIndex], delimiter).map((header) => header.trim());
+  const headerMap = new Map(headers.map((header, index) => [normalizeHeader(header), index]));
+  const versionIndex = requiredReimportHeader(headerMap, "cv_analyzer_export_version", fileName);
+  const orderIndex = requiredReimportHeader(headerMap, "dataset_order", fileName);
+  const nameIndex = requiredReimportHeader(headerMap, "dataset_name", fileName);
+  const originalNameIndex = requiredReimportHeader(headerMap, "original_file_name", fileName);
+  const cycleIndex = requiredReimportHeader(headerMap, "cycle", fileName);
+  const pointIndex = requiredReimportHeader(headerMap, "index", fileName);
+  const potentialIndex = requiredReimportHeader(headerMap, "processed_potential_v", fileName);
+  const yIndex = requiredReimportHeader(headerMap, "processed_y_value", fileName);
+  const yLabelIndex = requiredReimportHeader(headerMap, "processed_y_label", fileName);
+  requiredReimportHeader(headerMap, "source_potential_raw_v", fileName);
+  requiredReimportHeader(headerMap, "source_current_raw_a", fileName);
+  const datasetIdIndex = optionalReimportHeader(headerMap, "dataset_id");
+  const timeIndex = optionalReimportHeader(headerMap, "time_s");
+
+  const groups = new Map<
+    string,
+    {
+      datasetOrder: number;
+      firstSeen: number;
+      displayName: string;
+      originalFileName: string;
+      exportVersion: string;
+      processedYLabel: string;
+      points: RawPoint[];
+    }
+  >();
+
+  for (const [rowOffset, line] of lines.slice(headerIndex + 1).entries()) {
+    const row = splitLine(line, delimiter);
+    if (!row.some((cell) => cell.trim().length > 0)) continue;
+    const potential = toNumber(cell(row, potentialIndex));
+    const yValue = toNumber(cell(row, yIndex));
+    if (!Number.isFinite(potential) || !Number.isFinite(yValue)) continue;
+
+    const rawDatasetOrder = toNumber(cell(row, orderIndex));
+    const datasetOrder = Number.isFinite(rawDatasetOrder)
+      ? Math.round(rawDatasetOrder)
+      : groups.size;
+    const displayName = cell(row, nameIndex) || trimExtension(fileName);
+    const originalFileName = cell(row, originalNameIndex) || `${displayName}.csv`;
+    const datasetId = datasetIdIndex >= 0 ? cell(row, datasetIdIndex) : "";
+    const key = [datasetOrder, datasetId, displayName, originalFileName].join("\u0000");
+    const rawCycle = toNumber(cell(row, cycleIndex));
+    const rawPointIndex = toNumber(cell(row, pointIndex));
+    const group =
+      groups.get(key) ??
+      {
+        datasetOrder,
+        firstSeen: rowOffset,
+        displayName,
+        originalFileName,
+        exportVersion: cell(row, versionIndex) || "1",
+        processedYLabel: cell(row, yLabelIndex),
+        points: []
+      };
+    group.points.push({
+      potential,
+      current: yValue / 1000,
+      cycle: Number.isFinite(rawCycle) ? Math.max(1, Math.round(rawCycle)) : 1,
+      index: Number.isFinite(rawPointIndex) ? Math.round(rawPointIndex) : group.points.length,
+      time: timeIndex >= 0 ? finiteOrUndefined(toNumber(cell(row, timeIndex))) : undefined
+    });
+    groups.set(key, group);
+  }
+
+  const sorted = [...groups.values()].sort(
+    (a, b) => a.datasetOrder - b.datasetOrder || a.firstSeen - b.firstSeen
+  );
+  if (!sorted.length) throw new Error(`No reimport rows found in ${fileName}.`);
+  return sorted.map((group) => ({
+    originalFileName: group.originalFileName,
+    displayName: group.displayName,
+    fileType: "csv",
+    points: group.points,
+    meta: {
+      parser: "cv-analyzer-reimport",
+      exportVersion: group.exportVersion,
+      sourceFileName: fileName,
+      originalDatasetOrder: group.datasetOrder,
+      processedYLabel: group.processedYLabel
+    }
+  }));
 }
 
 export function cycleCount(points: RawPoint[]) {
@@ -381,15 +523,40 @@ function splitLine(line: string, delimiter: string) {
   const result: string[] = [];
   let current = "";
   let quoted = false;
-  for (const char of line) {
-    if (char === '"') quoted = !quoted;
-    else if (char === "," && !quoted) {
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
       result.push(current);
       current = "";
     } else current += char;
   }
   result.push(current);
   return result;
+}
+
+function normalizeHeader(header: string) {
+  return header.replace(/^\uFEFF/, "").trim().toLowerCase();
+}
+
+function requiredReimportHeader(headers: Map<string, number>, name: string, fileName: string) {
+  const index = headers.get(name);
+  if (index === undefined) throw new Error(`Reimport column ${name} not found in ${fileName}.`);
+  return index;
+}
+
+function optionalReimportHeader(headers: Map<string, number>, name: string) {
+  return headers.get(name) ?? -1;
+}
+
+function cell(row: string[], index: number) {
+  return index >= 0 ? (row[index] ?? "").trim() : "";
 }
 
 function pickHeader(headers: string[], patterns: RegExp[]) {
@@ -437,6 +604,10 @@ function toNumber(value: unknown) {
   const cleaned = String(value).trim().replace(",", ".");
   if (!cleaned) return Number.NaN;
   return Number(cleaned);
+}
+
+function finiteOrUndefined(value: number) {
+  return Number.isFinite(value) ? value : undefined;
 }
 
 function headerPotentialFactor(header: string) {

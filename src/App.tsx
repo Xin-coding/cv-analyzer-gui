@@ -13,7 +13,14 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { defaultCorrection, referencePresets } from "./lib/constants";
-import { downloadWorkbook, pointsWorkbook, tafelWorkbook } from "./lib/export";
+import {
+  downloadText,
+  downloadWorkbook,
+  pointsWorkbook,
+  reimportCsv,
+  reimportFileName,
+  tafelWorkbook
+} from "./lib/export";
 import { makeT } from "./lib/i18n";
 import {
   correctDataset,
@@ -124,6 +131,13 @@ export default function App() {
     );
     return modes.size <= 1 ? t(yAxisKey([...modes][0] ?? settings.normalizeMode)) : t("currentAxisMixed");
   }, [visibleDatasets, settings, t]);
+
+  const allYLabel = useMemo(() => {
+    const modes = new Set(
+      orderedDatasets.map((dataset) => mergedCorrection(settings, dataset.override).normalizeMode)
+    );
+    return modes.size <= 1 ? t(yAxisKey([...modes][0] ?? settings.normalizeMode)) : t("currentAxisMixed");
+  }, [orderedDatasets, settings, t]);
 
   const xLabel = useMemo(() => {
     const rawStates = visibleDatasets.map((dataset) =>
@@ -329,6 +343,15 @@ export default function App() {
     }
   }
 
+  function handleExportReimport() {
+    if (!orderedDatasets.length) return;
+    const series = orderedDatasets.map((dataset) => ({
+      dataset,
+      points: correctedMap.get(dataset.id) ?? []
+    }));
+    downloadText(reimportFileName(), reimportCsv(series, allYLabel), "text/csv;charset=utf-8");
+  }
+
   function updateSettings<K extends keyof CorrectionSettings>(key: K, value: CorrectionSettings[K]) {
     const patch = sanitizeCorrectionPatch({ [key]: value } as Partial<CorrectionSettings>);
     setSettings((current) => ({ ...current, [key]: (patch[key] ?? value) as CorrectionSettings[K] }));
@@ -520,6 +543,14 @@ export default function App() {
               onChange={(event) => void handleFiles(event.target.files)}
             />
           </label>
+          <button
+            className="toolbar-button"
+            onClick={handleExportReimport}
+            disabled={!orderedDatasets.length}
+          >
+            <Download size={16} />
+            {t("exportReimport")}
+          </button>
           <button
             className="toolbar-button"
             onClick={() => setLanguage((current) => (current === "zh" ? "en" : "zh"))}

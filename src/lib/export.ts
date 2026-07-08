@@ -19,6 +19,66 @@ export function downloadWorkbook(fileName: string, sheets: WorkbookSheet[]) {
   downloadText(fileName, workbookXml(sheets), "application/vnd.ms-excel;charset=utf-8");
 }
 
+export function reimportFileName(date = new Date()) {
+  const stamp = [
+    date.getFullYear(),
+    pad2(date.getMonth() + 1),
+    pad2(date.getDate()),
+    "-",
+    pad2(date.getHours()),
+    pad2(date.getMinutes()),
+    pad2(date.getSeconds())
+  ].join("");
+  return `cv-analyzer-reimport-${stamp}.csv`;
+}
+
+export function reimportCsv(
+  series: Array<{ dataset: Dataset; points: CorrectedPoint[] }>,
+  yLabel: string
+) {
+  const headers = [
+    "cv_analyzer_export_version",
+    "dataset_order",
+    "dataset_id",
+    "dataset_name",
+    "original_file_name",
+    "cycle",
+    "index",
+    "time_s",
+    "processed_potential_v",
+    "processed_y_value",
+    "processed_y_label",
+    "source_potential_raw_v",
+    "source_current_raw_a"
+  ];
+  const rows = [headers.join(",")];
+  const ordered = [...series].sort((a, b) => a.dataset.order - b.dataset.order);
+  for (const item of ordered) {
+    for (const point of item.points) {
+      rows.push(
+        [
+          1,
+          item.dataset.order,
+          item.dataset.id,
+          item.dataset.displayName,
+          item.dataset.originalFileName,
+          point.cycle,
+          point.index,
+          point.time,
+          point.correctedPotential,
+          point.yValue,
+          yLabel,
+          point.potential,
+          point.current
+        ]
+          .map(csvCell)
+          .join(",")
+      );
+    }
+  }
+  return rows.join("\n");
+}
+
 export function pointsWorkbook(
   datasets: Dataset[],
   series: Array<{ dataset: Dataset; points: CorrectedPoint[] }>,
@@ -220,6 +280,16 @@ export function tafelCsv(
 
 function csv(value: string) {
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+function csvCell(value: CellValue) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "";
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
 }
 
 function workbookXml(sheets: WorkbookSheet[]) {
