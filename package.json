@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:fixtures": "tsx scripts/fixture-smoke.ts",
-    "test:reimport": "tsx scripts/reimport-roundtrip.ts"
+    "test:reimport": "tsx scripts/reimport-roundtrip.ts",
+    "test:session": "tsx scripts/session-roundtrip.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.2",

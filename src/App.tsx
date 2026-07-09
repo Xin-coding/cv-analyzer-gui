@@ -17,8 +17,6 @@ import {
   downloadText,
   downloadWorkbook,
   pointsWorkbook,
-  reimportCsv,
-  reimportFileName,
   tafelWorkbook
 } from "./lib/export";
 import { makeT } from "./lib/i18n";
@@ -33,6 +31,12 @@ import {
   yAxisKey
 } from "./lib/math";
 import { parseFiles } from "./lib/parser";
+import {
+  parseSessionFile,
+  sessionFileName,
+  sessionJson,
+  type SessionSnapshot
+} from "./lib/session";
 import type {
   BranchMode,
   CorrectedPoint,
@@ -132,13 +136,6 @@ export default function App() {
     );
     return modes.size <= 1 ? t(yAxisKey([...modes][0] ?? settings.normalizeMode)) : t("currentAxisMixed");
   }, [visibleDatasets, settings, t]);
-
-  const allYLabel = useMemo(() => {
-    const modes = new Set(
-      orderedDatasets.map((dataset) => mergedCorrection(settings, dataset.override).normalizeMode)
-    );
-    return modes.size <= 1 ? t(yAxisKey([...modes][0] ?? settings.normalizeMode)) : t("currentAxisMixed");
-  }, [orderedDatasets, settings, t]);
 
   const xLabel = useMemo(() => {
     const rawStates = visibleDatasets.map((dataset) =>
@@ -335,7 +332,13 @@ export default function App() {
     if (!files?.length) return;
     setError("");
     try {
-      const parsed = await parseFiles(Array.from(files), datasets.length);
+      const fileList = Array.from(files);
+      const sessionFile = fileList.find((file) => /\.json$/i.test(file.name));
+      if (sessionFile) {
+        restoreSession(await parseSessionFile(sessionFile));
+        return;
+      }
+      const parsed = await parseFiles(fileList, datasets.length);
       setDatasets((current) => [...current, ...parsed]);
       const allPoints = parsed.flatMap((dataset) => correctDataset(dataset, settings));
       if (allPoints.length) setFitRange(normalizeFitRange(inferDefaultFitRange(allPoints)));
@@ -346,11 +349,58 @@ export default function App() {
 
   function handleExportReimport() {
     if (!orderedDatasets.length) return;
-    const series = orderedDatasets.map((dataset) => ({
-      dataset,
-      points: correctedMap.get(dataset.id) ?? []
-    }));
-    downloadText(reimportFileName(), reimportCsv(series, allYLabel), "text/csv;charset=utf-8");
+    downloadText(
+      sessionFileName(),
+      sessionJson({
+        datasets: orderedDatasets,
+        settings,
+        display: {
+          language,
+          activePanel,
+          cycleMode,
+          branchMode,
+          stacked,
+          stackStep,
+          showDirection
+        },
+        tafel: {
+          fitRange,
+          fitWindows,
+          tafelFocus
+        },
+        derivedResults: {
+          tafelFits: fits
+        }
+      }),
+      "application/json;charset=utf-8"
+    );
+  }
+
+  function restoreSession(snapshot: SessionSnapshot | null) {
+    if (!snapshot) return;
+    setLanguage(snapshot.display.language);
+    setActivePanel(snapshot.display.activePanel);
+    setDatasets(snapshot.datasets);
+    setSettings(snapshot.settings);
+    setCycleMode(snapshot.display.cycleMode);
+    setBranchMode(snapshot.display.branchMode);
+    setStacked(snapshot.display.stacked);
+    setStackStep(snapshot.display.stackStep);
+    setShowDirection(snapshot.display.showDirection);
+    setFitRange(normalizeFitRange(snapshot.tafel.fitRange));
+    setFitWindows(
+      Object.fromEntries(
+        Object.entries(snapshot.tafel.fitWindows).map(([datasetId, window]) => [
+          datasetId,
+          normalizeFitWindow(window)
+        ])
+      )
+    );
+    setTafelFocus(snapshot.tafel.tafelFocus);
+    setSettingsOpen(false);
+    setDragId(null);
+    setHoverPoint(null);
+    setError("");
   }
 
   function updateSettings<K extends keyof CorrectionSettings>(key: K, value: CorrectionSettings[K]) {
@@ -540,7 +590,7 @@ export default function App() {
               className="hidden"
               type="file"
               multiple
-              accept=".mpr,.mpt,.txt,.csv"
+              accept=".mpr,.mpt,.txt,.csv,.json"
               onChange={(event) => void handleFiles(event.target.files)}
             />
           </label>
